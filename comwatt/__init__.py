@@ -1,3 +1,5 @@
+import re
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -41,7 +43,7 @@ class Device(object):
 
 class PowerGEN4(webdriver.Firefox):
 
-    def __init__(self, debug):
+    def __init__(self, debug = False):
 
         options = Options()
 
@@ -52,8 +54,11 @@ class PowerGEN4(webdriver.Firefox):
     
         self.zones = []
 
+        self.default_site = None
+
     def login(self, email, password):
 
+        # Get the login page
         self.get('https://energy.comwatt.com/#/login/')
 
         WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.NAME, 'email'))
@@ -64,9 +69,20 @@ class PowerGEN4(webdriver.Firefox):
         elem = self.find_element(By.NAME, 'password')  # Find the search box
         elem.send_keys(password + Keys.RETURN)
 
-    def meter(self):
+        # Wait home page
+        WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'css-3kduam'))
 
-        self.get('https://energy.comwatt.com/#/sites/a9d0ef7b/meter/')
+        m = re.match("https://energy.comwatt.com/#/sites/([abcdef0123456789]+)/home", self.current_url)
+        
+        self.default_site = m.group(1)
+
+
+    def meter(self, site=None):
+
+        if not site:
+            site = self.default_site
+
+        self.get('https://energy.comwatt.com/#/sites/%s/meter/' % site)
         WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'css-3kduam'))
 
         elem = self.find_element(By.CLASS_NAME, 'css-3kduam')
@@ -76,11 +92,14 @@ class PowerGEN4(webdriver.Firefox):
         assert data[:-1].isdigit()
         return int(data[:-1])
 
-    def devices(self):
+    def devices(self, site):
+
+        if not site:
+            site = self.default_site
 
         self.zones = []
 
-        self.get('https://energy.comwatt.com/#/sites/a9d0ef7b/devices/')
+        self.get('https://energy.comwatt.com/#/sites/%s/devices/' % site)
         WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'ZoneDevices-item'))
 
         for elt_zone in self.find_elements(By.CLASS_NAME, 'ZoneDevices-item'): 
