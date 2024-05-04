@@ -92,7 +92,7 @@ class PowerGEN4(webdriver.Firefox):
         assert data[:-1].isdigit()
         return int(data[:-1])
 
-    def devices(self, site):
+    def devices(self, site=None):
 
         if not site:
             site = self.default_site
