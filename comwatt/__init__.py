@@ -1,4 +1,5 @@
 import re
+import time
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -14,6 +15,13 @@ DEVICES_TYPES = [
     "hotwatertank",
     "plug"
 ]
+
+
+URL_LOGIN = "https://energy.comwatt.com/#/login/"
+
+
+class LoginError(Exception):
+    pass
 
 
 class Zone(object):
@@ -43,7 +51,7 @@ class Device(object):
 
 class PowerGEN4(webdriver.Firefox):
 
-    def __init__(self, debug = False):
+    def __init__(self, email, password, debug = False):
 
         options = Options()
 
@@ -56,18 +64,41 @@ class PowerGEN4(webdriver.Firefox):
 
         self.default_site = None
 
-    def login(self, email, password):
+        self.email = email
+        self.password = password
+
+        self.login()
+
+        self.last_refresh_time = 0
+
+    # def wait_element_by_name(self, name):
+    #     try:
+    #         WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.NAME, name))
+    #     except:
+
+    def login(self):
 
         # Get the login page
-        self.get('https://energy.comwatt.com/#/login/')
+        super().get('https://energy.comwatt.com/#/login/')
 
         WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.NAME, 'email'))
 
+        # Enter email and password
         elem = self.find_element(By.NAME, 'email')  # Find the search box
-        elem.send_keys(email + Keys.RETURN)
+        elem.send_keys(self.email + Keys.RETURN)
 
         elem = self.find_element(By.NAME, 'password')  # Find the search box
-        elem.send_keys(password + Keys.RETURN)
+        elem.send_keys(self.password + Keys.RETURN)
+
+        # Wait for next page
+        for i in range(20):
+            if self.current_url != URL_LOGIN:
+               break
+            time.sleep(1)
+
+        # Still on the login page -> login error
+        if self.current_url == URL_LOGIN:
+            raise LoginError
 
         # Wait home page
         WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'css-3kduam'))
@@ -75,6 +106,19 @@ class PowerGEN4(webdriver.Firefox):
         m = re.match("https://energy.comwatt.com/#/sites/([abcdef0123456789]+)/home", self.current_url)
         
         self.default_site = m.group(1)
+
+
+    def get(self, url, title=None):
+        
+        # First try
+        super().get(url)
+
+        # Back to login page -> retry logins
+        if self.current_url == URL_LOGIN:
+            self.login()
+
+            # Second try
+            super().get(url)
 
 
     def meter(self, site=None):
@@ -92,7 +136,8 @@ class PowerGEN4(webdriver.Firefox):
         assert data[:-1].isdigit()
         return int(data[:-1])
 
-    def devices(self, site=None):
+
+    def refresh(self, site=None):
 
         if not site:
             site = self.default_site
@@ -145,13 +190,20 @@ class PowerGEN4(webdriver.Firefox):
                     device.initialized = True
                     device.value_instant = value
 
-        return self.zones
 
     def get_devices(self, device_type):
 
+        now = time.time()
+
+        if self.last_refresh_time + 1 < now:
+            self.refresh()
+            self.last_refresh_time = now
+
         list_devices = []
+
         for zone in self.zones:
             for device in zone.devices:
                 if device.type == device_type:
                     list_devices.append(device)
+
         return list_devices
