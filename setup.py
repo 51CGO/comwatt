@@ -4,6 +4,7 @@ setup(
     version='0.4.0',
     name='comwatt',
     description='Python client for Comwatt',
+    long_description="Python client for Comwatt",
     license='MIT',
     author='Christophe Godart',
     author_email='51CGO@armaghast.eu',
