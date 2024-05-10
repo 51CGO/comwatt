@@ -71,11 +71,6 @@ class PowerGEN4(webdriver.Firefox):
 
         self.last_refresh_time = 0
 
-    # def wait_element_by_name(self, name):
-    #     try:
-    #         WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.NAME, name))
-    #     except:
-
     def login(self):
 
         # Get the login page
@@ -107,7 +102,6 @@ class PowerGEN4(webdriver.Firefox):
         
         self.default_site = m.group(1)
 
-
     def get(self, url, title=None):
         
         # First try
@@ -119,7 +113,6 @@ class PowerGEN4(webdriver.Firefox):
 
             # Second try
             super().get(url)
-
 
     def meter(self, site=None):
 
@@ -135,7 +128,6 @@ class PowerGEN4(webdriver.Firefox):
         assert data[-1] == "%"
         assert data[:-1].isdigit()
         return int(data[:-1])
-
 
     def refresh(self, site=None):
 
@@ -190,7 +182,6 @@ class PowerGEN4(webdriver.Firefox):
                     device.initialized = True
                     device.value_instant = value
 
-
     def get_devices(self, device_type):
 
         now = time.time()
@@ -207,3 +198,7 @@ class PowerGEN4(webdriver.Firefox):
                     list_devices.append(device)
 
         return list_devices
+
+    def __del__(self):
+        # Close all browser windows
+        self.quit()
