@@ -1,3 +1,4 @@
+import logging
 import re
 import time
 
@@ -42,7 +43,7 @@ class Zone(object):
 class Device(object):
 
     def __init__(self, type):
-        
+
         self.type = type
         self.zone = None
         self.value_instant = 0
@@ -51,11 +52,13 @@ class Device(object):
 
 class PowerGEN4(webdriver.Firefox):
 
-    def __init__(self, email, password, debug = False):
+    def __init__(self, email, password, headless = True):
+        
+        self.logger = logging.getLogger(self.__class__.__name__)
 
         options = Options()
 
-        if not debug:
+        if headless:
             options.add_argument("-headless")
 
         super().__init__(options=options)
@@ -73,6 +76,8 @@ class PowerGEN4(webdriver.Firefox):
 
     def login(self):
 
+        self.logger.debug("Begin login")
+        
         # Get the login page
         super().get('https://energy.comwatt.com/#/login/')
 
@@ -102,19 +107,27 @@ class PowerGEN4(webdriver.Firefox):
         
         self.default_site = m.group(1)
 
-    def get(self, url, title=None):
+        self.logger.info("Login: success")
+        self.logger.info("Defaut site is %s" % self.default_site)
+
+    def get(self, url):
         
+        self.logger.debug("Begin get %s" % url)
+
         # First try
         super().get(url)
 
         # Back to login page -> retry logins
         if self.current_url == URL_LOGIN:
+            self.logger.warn("Disconnected: login required")
             self.login()
 
             # Second try
             super().get(url)
 
     def meter(self, site=None):
+
+        self.logger.debug("Begin meter %s" % site)
 
         if not site:
             site = self.default_site
@@ -127,9 +140,15 @@ class PowerGEN4(webdriver.Firefox):
         data = elem.text
         assert data[-1] == "%"
         assert data[:-1].isdigit()
-        return int(data[:-1])
+        value = int(data[:-1])
+
+        self.logger.debug("Meter = %d%" % value)
+
+        return value
 
     def refresh(self, site=None):
+
+        self.logger.debug("Begin refresh %s" % site)
 
         if not site:
             site = self.default_site
@@ -183,6 +202,8 @@ class PowerGEN4(webdriver.Firefox):
                     device.value_instant = value
 
     def get_devices(self, device_type):
+
+        self.logger.debug("Begin get_devices %s" % device_type)
 
         now = time.time()
 
