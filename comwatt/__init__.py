@@ -154,9 +154,15 @@ class PowerGEN4(webdriver.Firefox):
             site = self.default_site
 
         self.zones = []
+        
+        if self.current_url != 'https://energy.comwatt.com/#/sites/%s/devices/' % site:
+            self.get('https://energy.comwatt.com/#/sites/%s/devices/' % site)
 
-        self.get('https://energy.comwatt.com/#/sites/%s/devices/' % site)
-        WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'ZoneDevices-item'))
+        try:
+            WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'ZoneDevices-item'))
+        except:
+            raise RuntimeError
+            # Todo : Add refresh ?
 
         for elt_zone in self.find_elements(By.CLASS_NAME, 'ZoneDevices-item'): 
 
