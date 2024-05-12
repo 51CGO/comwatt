@@ -159,6 +159,8 @@ class PowerGEN4(webdriver.Firefox):
 
         if self.current_url != 'https://energy.comwatt.com/#/sites/%s/devices/' % site:
             self.get('https://energy.comwatt.com/#/sites/%s/devices/' % site)
+        else:
+            self.refresh()
 
         try:
             WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'ZoneDevices-item'))
