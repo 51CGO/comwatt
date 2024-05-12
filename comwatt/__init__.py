@@ -52,7 +52,7 @@ class Device(object):
 
 class PowerGEN4(webdriver.Firefox):
 
-    def __init__(self, email, password, headless = True):
+    def __init__(self, comwatt_email, comwatt_password, headless = True):
         
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -67,16 +67,21 @@ class PowerGEN4(webdriver.Firefox):
 
         self.default_site = None
 
-        self.email = email
-        self.password = password
+        self.comwatt_email = comwatt_email
+        self.comwatt_password = comwatt_password
 
         self.login()
 
-        self.last_refresh_time = 0
+        self.last_update_time = 0
+        self.last_display_time = 0
+        
+        #self.last_data = ""
+        #self.last_data_change_time = 0
+
 
     def login(self):
 
-        self.logger.debug("Begin login")
+        self.logger.info("Login")
         
         # Get the login page
         super().get('https://energy.comwatt.com/#/login/')
@@ -85,10 +90,10 @@ class PowerGEN4(webdriver.Firefox):
 
         # Enter email and password
         elem = self.find_element(By.NAME, 'email')  # Find the search box
-        elem.send_keys(self.email + Keys.RETURN)
+        elem.send_keys(self.comwatt_email + Keys.RETURN)
 
         elem = self.find_element(By.NAME, 'password')  # Find the search box
-        elem.send_keys(self.password + Keys.RETURN)
+        elem.send_keys(self.comwatt_password + Keys.RETURN)
 
         # Wait for next page
         for i in range(20):
@@ -112,7 +117,7 @@ class PowerGEN4(webdriver.Firefox):
 
     def get(self, url):
         
-        self.logger.debug("Begin get %s" % url)
+        self.logger.info("Get %s" % url)
 
         # First try
         super().get(url)
@@ -146,15 +151,12 @@ class PowerGEN4(webdriver.Firefox):
 
         return value
 
-    def refresh(self, site=None):
 
-        self.logger.debug("Begin refresh %s" % site)
+    def display_devices_page(self, site=None):
 
         if not site:
             site = self.default_site
 
-        self.zones = []
-        
         if self.current_url != 'https://energy.comwatt.com/#/sites/%s/devices/' % site:
             self.get('https://energy.comwatt.com/#/sites/%s/devices/' % site)
 
@@ -162,7 +164,25 @@ class PowerGEN4(webdriver.Firefox):
             WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'ZoneDevices-item'))
         except:
             raise RuntimeError
-            # Todo : Add refresh ?
+            # Todo : Add update ?
+
+    def update_devices_data(self, site=None):
+        """Analyze the devices page"""
+
+        if not site:
+            site = self.default_site
+
+        self.logger.info("Update devices data for %s" % site)
+
+        #TODO : Change this. Don't delete everything before updating
+        self.zones = []
+
+        # Reload page every 10 minutes
+        now = time.time()
+        if self.last_display_time + 600 < now:
+            self.logger.warn("Reload devices page")
+            self.display_devices_page(site)
+            self.last_display_time = now
 
         for elt_zone in self.find_elements(By.CLASS_NAME, 'ZoneDevices-item'): 
 
@@ -207,15 +227,15 @@ class PowerGEN4(webdriver.Firefox):
                     device.initialized = True
                     device.value_instant = value
 
-    def get_devices(self, device_type):
+    def get_devices(self, device_type, site=None):
 
-        self.logger.debug("Begin get_devices %s" % device_type)
+        self.logger.info("Get devices %s" % device_type)
 
         now = time.time()
 
-        if self.last_refresh_time + 1 < now:
-            self.refresh()
-            self.last_refresh_time = now
+        if self.last_update_time + 1 < now:
+            self.update_devices_data(site)
+            self.last_update_time = now
 
         list_devices = []
 

@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    version='0.8.0',
+    version='0.9.0',
     name='comwatt',
     description='Python client for Comwatt',
     long_description=open('README.md', 'r').read(),
