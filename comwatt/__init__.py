@@ -106,11 +106,14 @@ class PowerGEN4(webdriver.Firefox):
             raise LoginError
 
         # Wait home page
-        WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'css-3kduam'))
+        #WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'css-3kduam'))
 
-        m = re.match("https://energy.comwatt.com/#/sites/([abcdef0123456789]+)/home", self.current_url)
-        
-        self.default_site = m.group(1)
+        for i in range(20):
+            m = re.match("https://energy.comwatt.com/#/sites/([abcdef0123456789]+)/home", self.current_url)
+            if m is not None:
+                self.default_site = m.group(1)
+                break
+            time.sleep(1)
 
         self.logger.info("Login: success")
         self.logger.info("Defaut site is %s" % self.default_site)
