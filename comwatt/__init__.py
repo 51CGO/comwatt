@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+import traceback
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -133,6 +134,12 @@ class PowerGEN4(webdriver.Firefox):
             # Second try
             super().get(url)
 
+        for i in range(20):
+            if self.current_url == url:
+                break
+            time.sleep(1)
+
+
     def meter(self, site=None):
 
         self.logger.debug("Begin meter %s" % site)
@@ -165,11 +172,7 @@ class PowerGEN4(webdriver.Firefox):
         else:
             self.refresh()
 
-        try:
-            WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'ZoneDevices-item'))
-        except:
-            raise RuntimeError
-            # Todo : Add update ?
+        WebDriverWait(self, timeout=20).until(lambda d: d.find_element(By.CLASS_NAME, 'ZoneDevices-item'))
 
     def update_devices_data(self, site=None):
         """Analyze the devices page"""
@@ -184,53 +187,57 @@ class PowerGEN4(webdriver.Firefox):
 
         # Reload page every 10 minutes
         now = time.time()
-        if self.last_display_time + 600 < now:
+        if self.last_display_time + 600 < now or self.current_url != 'https://energy.comwatt.com/#/sites/%s/devices/' % site:
             self.logger.warn("Reload devices page")
             self.display_devices_page(site)
             self.last_display_time = now
 
-        for elt_zone in self.find_elements(By.CLASS_NAME, 'ZoneDevices-item'): 
+        try:
+            for elt_zone in self.find_elements(By.CLASS_NAME, 'ZoneDevices-item'): 
 
-            elem_title = elt_zone.find_element(By.CLASS_NAME, 'css-2bb7pl')
-            zone = Zone(elem_title.text)
-            
-            self.zones.append(zone)
+                elem_title = elt_zone.find_element(By.CLASS_NAME, 'css-2bb7pl')
+                zone = Zone(elem_title.text)
+                
+                self.zones.append(zone)
 
-            for elm_device in elt_zone.find_elements(By.CLASS_NAME, 'css-1aq3xkd'):
-                
-                elm_icon = elm_device.find_element(By.TAG_NAME, 'span')
-                
-                text_type = elm_icon.get_dom_attribute("class")
-
-                device_type = None
-                
-                for type in DEVICES_TYPES:
+                for elm_device in elt_zone.find_elements(By.CLASS_NAME, 'css-1aq3xkd'):
                     
-                    if text_type.count(type):
-                        device_type = type
-                        break
-
-                device = None
-
-                if device_type:
-                    device = Device(device_type)
-                    zone.add_device(device)
-
-                elt_instant = elm_device.find_element(By.CLASS_NAME, 'css-11twb10')
-                data = elt_instant.text
-                
-                if data == "N/A":
-                    device.initialized = False
-                    device.value_instant = 0.0
-                else:
-                    text_value, unit = data.split()
-                    value = float(text_value)
+                    elm_icon = elm_device.find_element(By.TAG_NAME, 'span')
                     
-                    if unit == "kW":
-                        value *= 1000
+                    text_type = elm_icon.get_dom_attribute("class")
 
-                    device.initialized = True
-                    device.value_instant = value
+                    device_type = None
+                    
+                    for type in DEVICES_TYPES:
+                        
+                        if text_type.count(type):
+                            device_type = type
+                            break
+
+                    device = None
+
+                    if device_type:
+                        device = Device(device_type)
+                        zone.add_device(device)
+
+                    elt_instant = elm_device.find_element(By.CLASS_NAME, 'css-11twb10')
+                    data = elt_instant.text
+                    
+                    if data == "N/A":
+                        device.initialized = False
+                        device.value_instant = 0.0
+                    else:
+                        text_value, unit = data.split()
+                        value = float(text_value)
+                        
+                        if unit == "kW":
+                            value *= 1000
+
+                        device.initialized = True
+                        device.value_instant = value
+        except:
+            logging.error(traceback.format_exc())
+
 
     def get_devices(self, device_type, site=None):
 
